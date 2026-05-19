@@ -1,0 +1,131 @@
+import streamlit as st
+import pandas as pd
+from databricks import sql
+from databricks.sdk import WorkspaceClient
+from databricks.sdk.service.files import UploadRequest
+from openai import OpenAI
+import io
+
+# === KONFIGURACJA ===
+DATABRICKS_HOST  = st.secrets["DATABRICKS_HOST"]
+DATABRICKS_TOKEN = st.secrets["DATABRICKS_TOKEN"]
+DATABRICKS_HTTP_PATH = st.secrets["DATABRICKS_HTTP_PATH"]
+OPENAI_API_KEY   = st.secrets["OPENAI_API_KEY"]
+
+CATALOG = "inspektor_budzet"
+SCHEMA  = "rowkop"
+
+st.set_page_config(page_title="Inspektor Budżet", layout="wide")
+st.title("Inspektor Budżet")
+st.caption("Automatyczna weryfikacja faktur dostawców")
+
+# === FUNKCJE POMOCNICZE ===
+
+def get_databricks_connection():
+    return sql.connect(
+        server_hostname=DATABRICKS_HOST.replace("https://", ""),
+        http_path=DATABRICKS_HTTP_PATH,
+        access_token=DATABRICKS_TOKEN
+    )
+
+def load_report():
+    with get_databricks_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(f"SELECT * FROM {CATALOG}.{SCHEMA}.gold_raport_rozbieznosci")
+            return cursor.fetchall_arrow().to_pandas()
+
+def upload_to_databricks(file_bytes, filename, subfolder="bronze"):
+    w = WorkspaceClient(
+        host=DATABRICKS_HOST,
+        token=DATABRICKS_TOKEN
+    )
+    path = f"/Volumes/{CATALOG}/{SCHEMA}/{subfolder}/{filename}"
+    w.files.upload(path, io.BytesIO(file_bytes), overwrite=True)
+    return path
+
+def analyze_with_llm(df):
+    client = OpenAI(api_key=OPENAI_API_KEY)
+    raport_text = df.to_string(index=False)
+    prompt = f"""Jesteś ekspertem ds. kontroli budżetowej w gminie.
+Przeanalizuj poniższy raport rozbieżności między danymi ERP gminy a fakturą dostawcy robót ziemnych.
+Napisz krótkie podsumowanie po polsku (3-5 zdań): co się nie zgadza, na czyją niekorzyść i jaka jest łączna kwota rozbieżności.
+
+Raport:
+{raport_text}"""
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message.content
+
+# === ZAKŁADKI ===
+tab1, tab2, tab3 = st.tabs(["Upload plików", "Raport rozbieżności", "Analiza AI"])
+
+# --- ZAKŁADKA 1: UPLOAD ---
+with tab1:
+    st.header("Wgraj pliki dostawcy")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("Dane zużycia (CSV)")
+        csv_file = st.file_uploader("Wybierz plik CSV z ERP", type=["csv"])
+        if csv_file and st.button("Wgraj CSV"):
+            with st.spinner("Wysyłanie..."):
+                path = upload_to_databricks(csv_file.read(), csv_file.name)
+                st.success(f"Wgrano: {path}")
+
+    with col2:
+        st.subheader("Faktura (PDF)")
+        pdf_file = st.file_uploader("Wybierz plik faktury PDF", type=["pdf"])
+        if pdf_file and st.button("Wgraj PDF"):
+            with st.spinner("Wysyłanie..."):
+                path = upload_to_databricks(pdf_file.read(), pdf_file.name)
+                st.success(f"Wgrano: {path}")
+
+# --- ZAKŁADKA 2: RAPORT ---
+with tab2:
+    st.header("Raport rozbieżności")
+
+    if st.button("Odśwież raport"):
+        with st.spinner("Pobieranie danych..."):
+            try:
+                df = load_report()
+                st.session_state["df_raport"] = df
+            except Exception as e:
+                st.error(f"Błąd połączenia z Databricks: {e}")
+
+    if "df_raport" in st.session_state:
+        df = st.session_state["df_raport"]
+
+        # Kolorowanie wierszy z niezgodnością
+        def highlight_status(row):
+            if row["status"] == "NIEZGODNOŚĆ":
+                return ["background-color: #ffe0e0"] * len(row)
+            return ["background-color: #e0ffe0"] * len(row)
+
+        st.dataframe(df.style.apply(highlight_status, axis=1), use_container_width=True)
+
+        # Podsumowanie kwotowe
+        laczna_roznica = df["roznica_kwota"].sum()
+        st.metric(
+            label="Łączna rozbieżność kwotowa (netto)",
+            value=f"{laczna_roznica:,.2f} zł",
+            delta=f"{laczna_roznica:,.2f} zł na niekorzyść gminy" if laczna_roznica > 0 else "Na korzyść gminy"
+        )
+
+# --- ZAKŁADKA 3: ANALIZA AI ---
+with tab3:
+    st.header("Analiza AI")
+
+    if "df_raport" not in st.session_state:
+        st.info("Najpierw wczytaj raport w zakładce 'Raport rozbieżności'.")
+    else:
+        if st.button("Generuj analizę"):
+            with st.spinner("GPT analizuje raport..."):
+                analiza = analyze_with_llm(st.session_state["df_raport"])
+                st.session_state["analiza"] = analiza
+
+        if "analiza" in st.session_state:
+            st.write(st.session_state["analiza"])
