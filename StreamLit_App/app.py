@@ -147,7 +147,18 @@ with tab1:
 
 # --- ZAKŁADKA 2: ANALIZA KONTRAKTU ---
 with tab2:
-    st.header("Analiza kontraktu")
-    st.info("Wkrótce — upload kontraktu PDF i automatyczna analiza struktury pozycji.")
+
+    # Sekcja 1: Upload kontraktu
+    st.header("1. Wgraj kontrakt")
+    kontrakt_file = st.file_uploader("Wybierz plik PDF kontraktu", type=["pdf"])
+    if kontrakt_file and st.button("Wgraj kontrakt"):
+        with st.spinner("Wysyłanie..."):
+            path = upload_to_databricks(kontrakt_file.read(), kontrakt_file.name, subfolder="bronze")
+            st.session_state["kontrakt_bytes"] = kontrakt_file.getvalue()
+            st.success(f"Wgrano: {path}")
+
+    st.divider()
+    st.header("2. Analiza struktury kontraktu")
+    st.info("Wgraj kontrakt powyżej, a następnie uruchom analizę.")
 
 
