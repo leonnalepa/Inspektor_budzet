@@ -78,11 +78,11 @@ Raport:
     return response.choices[0].message.content
 
 # === ZAKŁADKI ===
-tab1, tab2 = st.tabs(["Upload plików", "Raport rozbieżności"])
+tab1, tab2 = st.tabs(["Upload plików do porównania", "Raport rozbieżności"])
 
 # --- ZAKŁADKA 1: UPLOAD ---
 with tab1:
-    st.header("Wgraj pliki dostawcy")
+    st.header("Wgraj pliki: dane zużycia (z ERP) i fakturę od dostawcy")
 
     col1, col2 = st.columns(2)
 
