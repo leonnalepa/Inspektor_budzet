@@ -78,7 +78,7 @@ Raport:
     return response.choices[0].message.content
 
 # === ZAKŁADKI ===
-tab1, tab2, tab3 = st.tabs(["Upload plików", "Raport rozbieżności", "Analiza AI"])
+tab1, tab2 = st.tabs(["Upload plików", "Raport rozbieżności"])
 
 # --- ZAKŁADKA 1: UPLOAD ---
 with tab1:
@@ -132,9 +132,6 @@ with tab2:
             value=f"{laczna_roznica:,.2f} zł",
             delta=f"{laczna_roznica:,.2f} zł na niekorzyść gminy" if laczna_roznica > 0 else "Na korzyść gminy"
         )
-
-# --- ZAKŁADKA 3: ANALIZA AI ---
-with tab3:
     st.header("Analiza AI")
 
     if "df_raport" not in st.session_state:
@@ -147,3 +144,5 @@ with tab3:
 
         if "analiza" in st.session_state:
             st.write(st.session_state["analiza"])
+
+
