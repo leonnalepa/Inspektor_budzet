@@ -15,8 +15,22 @@ CATALOG = "inspektor_budzet"
 SCHEMA  = "rowkop"
 
 st.set_page_config(page_title="Inspektor Budżet", layout="wide")
-st.title("Inspektor Budżet")
-st.caption("Automatyczna weryfikacja faktur dostawców")
+
+# === NAGŁÓWEK ===
+col_logo, col_tytul = st.columns([1, 4])
+with col_logo:
+    st.image("StreamLit_App/logo.png", width=200)
+with col_tytul:
+    st.markdown("""
+**Praca Zaliczeniowa z Przedmiotu**
+*„Projektowanie produktu cyfrowego i architektury IT w start-up'ach"*
+
+### pt. „Inspektor Budżet"
+
+**Grupa Menedżerska Nr 6:**
+Leon Nalepa, Robert Panek, Barbara Roszkowska, Piotr Sucharski, Wieńczysław Szoja, Joanna Wcisło
+""")
+st.divider()
 
 # === FUNKCJE POMOCNICZE ===
 
