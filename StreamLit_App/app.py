@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from databricks import sql
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.files import UploadRequest
 from openai import OpenAI
 import io
 
