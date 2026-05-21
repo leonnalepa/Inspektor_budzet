@@ -61,6 +61,40 @@ def load_report():
             cursor.execute(f"SELECT * FROM {CATALOG}.{SCHEMA}.gold_raport_rozbieznosci")
             return cursor.fetchall_arrow().to_pandas()
 
+def extract_text_from_pdf(pdf_bytes):
+    # Wyciąga tekst ze wszystkich stron PDF
+    from pypdf import PdfReader
+    import io
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    return "\n".join(page.extract_text() for page in reader.pages)
+
+def analyze_contract(pdf_bytes):
+    # Wysyła tekst kontraktu do GPT i prosi o wyciągnięcie struktury pozycji
+    client = OpenAI(api_key=OPENAI_API_KEY)
+    tekst = extract_text_from_pdf(pdf_bytes)
+    prompt = f"""Jesteś ekspertem ds. analizy kontraktów dla jednostek samorządowych.
+Przeanalizuj poniższy kontrakt i wyciągnij wszystkie pozycje rozliczeniowe.
+
+Dla każdej pozycji podaj:
+- Nazwa pozycji
+- Stawka (kwota)
+- Jednostka (np. miesiąc, mb, godzina, dzień)
+- Typ (Stała / Zmienna)
+- Ważna reguła lub warunek (jeśli istnieje)
+
+Następnie opisz krótko najważniejsze reguły rozliczenia (np. rabaty progowe, warunki dodatków).
+Uwzględnij też informacje z aneksów jeśli są obecne.
+Odpowiedz po polsku w czytelnym formacie.
+
+Kontrakt:
+{tekst}"""
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message.content
+
 def analyze_with_llm(df):
     client = OpenAI(api_key=OPENAI_API_KEY)
     raport_text = df.to_string(index=False)
@@ -158,7 +192,19 @@ with tab2:
             st.success(f"Wgrano: {path}")
 
     st.divider()
+
+    # Sekcja 2: Analiza struktury kontraktu
     st.header("2. Analiza struktury kontraktu")
-    st.info("Wgraj kontrakt powyżej, a następnie uruchom analizę.")
+
+    if "kontrakt_bytes" not in st.session_state:
+        st.info("Wgraj kontrakt powyżej, a następnie uruchom analizę.")
+    else:
+        if st.button("Analizuj kontrakt"):
+            with st.spinner("GPT analizuje kontrakt..."):
+                wynik = analyze_contract(st.session_state["kontrakt_bytes"])
+                st.session_state["wynik_kontraktu"] = wynik
+
+        if "wynik_kontraktu" in st.session_state:
+            st.markdown(st.session_state["wynik_kontraktu"])
 
 
