@@ -33,21 +33,11 @@ Leon Nalepa, Robert Panek, Barbara Roszkowska, Piotr Sucharski, Wieńczysław Sz
 st.divider()
 
 # === FUNKCJE POMOCNICZE ===
-
-def get_databricks_connection():
-    return sql.connect(
-        server_hostname=DATABRICKS_HOST.replace("https://", ""),
-        http_path=DATABRICKS_HTTP_PATH,
-        access_token=DATABRICKS_TOKEN
-    )
-
-def load_report():
-    with get_databricks_connection() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute(f"SELECT * FROM {CATALOG}.{SCHEMA}.gold_raport_rozbieznosci")
-            return cursor.fetchall_arrow().to_pandas()
+# Kolejność odpowiada kolejności kroków w procesie:
+# 1. Upload plików → 2. Połączenie z Databricks → 3. Pobranie raportu → 4. Analiza AI
 
 def upload_to_databricks(file_bytes, filename, subfolder="bronze"):
+    # Wysyła plik do Databricks Volumes (bronze)
     w = WorkspaceClient(
         host=DATABRICKS_HOST,
         token=DATABRICKS_TOKEN
@@ -55,6 +45,21 @@ def upload_to_databricks(file_bytes, filename, subfolder="bronze"):
     path = f"/Volumes/{CATALOG}/{SCHEMA}/{subfolder}/{filename}"
     w.files.upload(path, io.BytesIO(file_bytes), overwrite=True)
     return path
+
+def get_databricks_connection():
+    # Otwiera połączenie SQL z Databricks
+    return sql.connect(
+        server_hostname=DATABRICKS_HOST.replace("https://", ""),
+        http_path=DATABRICKS_HTTP_PATH,
+        access_token=DATABRICKS_TOKEN
+    )
+
+def load_report():
+    # Pobiera raport rozbieżności z tabeli gold
+    with get_databricks_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(f"SELECT * FROM {CATALOG}.{SCHEMA}.gold_raport_rozbieznosci")
+            return cursor.fetchall_arrow().to_pandas()
 
 def analyze_with_llm(df):
     client = OpenAI(api_key=OPENAI_API_KEY)
