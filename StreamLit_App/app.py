@@ -78,12 +78,13 @@ Raport:
     return response.choices[0].message.content
 
 # === ZAKŁADKI ===
-tab1, tab2 = st.tabs(["Upload plików do porównania", "Raport rozbieżności"])
+tab1, tab2 = st.tabs(["Weryfikacja faktury", "Analiza kontraktu"])
 
-# --- ZAKŁADKA 1: UPLOAD ---
+# --- ZAKŁADKA 1: WERYFIKACJA FAKTURY ---
 with tab1:
-    st.header("Wgraj pliki: dane zużycia (z ERP) i fakturę od dostawcy")
 
+    # Sekcja 1: Upload plików
+    st.header("1. Wgraj pliki")
     col1, col2 = st.columns(2)
 
     with col1:
@@ -102,9 +103,10 @@ with tab1:
                 path = upload_to_databricks(pdf_file.read(), pdf_file.name)
                 st.success(f"Wgrano: {path}")
 
-# --- ZAKŁADKA 2: RAPORT ---
-with tab2:
-    st.header("Raport rozbieżności")
+    st.divider()
+
+    # Sekcja 2: Raport rozbieżności
+    st.header("2. Raport rozbieżności")
 
     if st.button("Odśwież raport"):
         with st.spinner("Pobieranie danych..."):
@@ -117,7 +119,6 @@ with tab2:
     if "df_raport" in st.session_state:
         df = st.session_state["df_raport"]
 
-        # Kolorowanie wierszy z niezgodnością
         def highlight_status(row):
             if row["status"] == "NIEZGODNOŚĆ":
                 return ["background-color: #ffe0e0"] * len(row)
@@ -125,18 +126,17 @@ with tab2:
 
         st.dataframe(df.style.apply(highlight_status, axis=1), use_container_width=True)
 
-        # Podsumowanie kwotowe
         laczna_roznica = df["roznica_kwota"].sum()
         st.metric(
             label="Łączna rozbieżność kwotowa (netto)",
             value=f"{laczna_roznica:,.2f} zł",
             delta=f"{laczna_roznica:,.2f} zł na niekorzyść gminy" if laczna_roznica > 0 else "Na korzyść gminy"
         )
-    st.header("Analiza AI")
 
-    if "df_raport" not in st.session_state:
-        st.info("Najpierw wczytaj raport w zakładce 'Raport rozbieżności'.")
-    else:
+        st.divider()
+
+        # Sekcja 3: Analiza AI
+        st.header("3. Analiza AI")
         if st.button("Generuj analizę"):
             with st.spinner("GPT analizuje raport..."):
                 analiza = analyze_with_llm(st.session_state["df_raport"])
@@ -144,5 +144,10 @@ with tab2:
 
         if "analiza" in st.session_state:
             st.write(st.session_state["analiza"])
+
+# --- ZAKŁADKA 2: ANALIZA KONTRAKTU ---
+with tab2:
+    st.header("Analiza kontraktu")
+    st.info("Wkrótce — upload kontraktu PDF i automatyczna analiza struktury pozycji.")
 
 
