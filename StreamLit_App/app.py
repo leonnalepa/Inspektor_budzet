@@ -84,6 +84,7 @@ Dla każdej pozycji podaj:
 
 Następnie opisz krótko najważniejsze reguły rozliczenia (np. rabaty progowe, warunki dodatków).
 Uwzględnij też informacje z aneksów jeśli są obecne.
+Przygotuj przykładową fakturę 
 Odpowiedz po polsku w czytelnym formacie.
 
 Kontrakt:
