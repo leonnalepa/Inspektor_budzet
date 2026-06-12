@@ -1,0 +1,6 @@
+streamlit
+databricks-sql-connector
+databricks-sdk
+openai
+pandas
+pypdf
