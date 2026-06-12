@@ -1,0 +1,10 @@
+{
+	"name": "KeyVault_inspektorbudzet",
+	"properties": {
+		"annotations": [],
+		"type": "AzureKeyVault",
+		"typeProperties": {
+			"baseUrl": "https://inspektorbudzet.vault.azure.net/"
+		}
+	}
+}
